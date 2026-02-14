@@ -7,8 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 class PromoCode extends Model
 {
     protected $fillable = [
-        'code','type','value','min_purchase','max_uses','used_count',
-        'starts_at','ends_at','is_active'
+        'code',
+        'type',
+        'value',
+        'min_purchase',
+        'max_uses',
+        'used_count',
+        'starts_at',
+        'ends_at',
+        'is_active'
     ];
 
     protected $casts = [
@@ -46,5 +53,24 @@ class PromoCode extends Model
 
         // 5) selain itu aktif
         return 'active';
+    }
+
+    public function packages()
+    {
+        return $this->belongsToMany(\App\Models\Package::class, 'promo_code_packages')
+            ->withTimestamps();
+    }
+
+    public function products()
+    {
+        return $this->belongsToMany(
+            \App\Models\Product::class,
+            'promo_code_products'
+        );
+    }
+
+    public function redemptions()
+    {
+        return $this->hasMany(\App\Models\PromoRedemption::class);
     }
 }

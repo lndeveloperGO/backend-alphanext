@@ -45,4 +45,10 @@ class Package extends Model
             ->withTimestamps()
             ->orderByPivot('sort_order');
     }
+
+    public function promoCodes()
+    {
+        return $this->belongsToMany(\App\Models\PromoCode::class, 'promo_code_packages')
+            ->withTimestamps();
+    }
 }

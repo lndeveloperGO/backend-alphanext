@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\UserMaterialController;
 use App\Http\Controllers\Api\Admin\AdminMaterialController;
 use App\Http\Controllers\Api\Admin\AdminMaterialPartController;
 use App\Http\Controllers\Api\Admin\AdminPackageMaterialController;
+use App\Http\Controllers\Api\CheckoutController;
 
 
 /*
@@ -167,6 +168,8 @@ Route::middleware(['auth:sanctum', 'admin'])
 
         // promo codes
         Route::apiResource('promo-codes', PromoCodeController::class);
+        Route::put('promo-codes/{promo}/packages', [PromoCodeController::class, 'syncPackages']);
+        Route::put('promo-codes/{promo}/products', [PromoCodeController::class, 'syncProducts']);
 
         // products
         Route::apiResource('products', ProductController::class);

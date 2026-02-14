@@ -39,11 +39,9 @@ class PromoCodeController extends Controller
             'is_active' => ['required', 'boolean'],
         ]);
 
-
         $data['code'] = strtoupper(trim($data['code']));
         $data['min_purchase'] = $data['min_purchase'] ?? 0;
 
-        // rule: percent max 100
         if ($data['type'] === 'percent' && $data['value'] > 100) {
             return response()->json([
                 'success' => false,
@@ -58,7 +56,54 @@ class PromoCodeController extends Controller
 
     public function show(PromoCode $promo_code)
     {
+        $promo_code->load([
+            'packages:id,name,type',
+            'products:id,name,type,price',
+        ]);
+
         return response()->json(['success' => true, 'data' => $promo_code]);
+    }
+
+    public function syncPackages(Request $request, PromoCode $promo)
+    {
+        $data = $request->validate([
+            'packages' => ['required', 'array'],
+            'packages.*.package_id' => ['required', 'integer', 'exists:packages,id'],
+        ]);
+
+        $sync = collect($data['packages'])
+            ->pluck('package_id')
+            ->unique()
+            ->values()
+            ->all();
+
+        $promo->packages()->sync($sync);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Packages synced'
+        ]);
+    }
+
+    public function syncProducts(Request $request, PromoCode $promo)
+    {
+        $data = $request->validate([
+            'products' => ['required', 'array'],
+            'products.*.product_id' => ['required', 'integer', 'exists:products,id'],
+        ]);
+
+        $sync = collect($data['products'])
+            ->pluck('product_id')
+            ->unique()
+            ->values()
+            ->all();
+
+        $promo->products()->sync($sync);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Products synced'
+        ]);
     }
 
     public function update(Request $request, PromoCode $promo_code)
@@ -90,7 +135,6 @@ class PromoCodeController extends Controller
         if (array_key_exists('min_purchase', $data) && $data['min_purchase'] === null) {
             $data['min_purchase'] = 0;
         }
-
 
         $promo_code->update($data);
 
