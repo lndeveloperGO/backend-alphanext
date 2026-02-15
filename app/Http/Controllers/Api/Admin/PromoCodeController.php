@@ -106,6 +106,23 @@ class PromoCodeController extends Controller
         ]);
     }
 
+    public function assignments(PromoCode $promo_code)
+    {
+        $promo_code->load([
+            'packages:id,name',
+            'products:id,name',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'promo_code_id' => $promo_code->id,
+                'packages' => $promo_code->packages,
+                'products' => $promo_code->products,
+            ],
+        ]);
+    }
+
     public function update(Request $request, PromoCode $promo_code)
     {
         $data = $request->validate([

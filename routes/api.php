@@ -168,6 +168,7 @@ Route::middleware(['auth:sanctum', 'admin'])
 
         // promo codes
         Route::apiResource('promo-codes', PromoCodeController::class);
+        Route::get('promo-codes/{promo_code}/assignments', [PromoCodeController::class, 'assignments']);
         Route::put('promo-codes/{promo}/packages', [PromoCodeController::class, 'syncPackages']);
         Route::put('promo-codes/{promo}/products', [PromoCodeController::class, 'syncProducts']);
 

@@ -63,10 +63,8 @@ class PromoCode extends Model
 
     public function products()
     {
-        return $this->belongsToMany(
-            \App\Models\Product::class,
-            'promo_code_products'
-        );
+        return $this->belongsToMany(\App\Models\Product::class, 'promo_code_products')
+            ->withTimestamps();
     }
 
     public function redemptions()
