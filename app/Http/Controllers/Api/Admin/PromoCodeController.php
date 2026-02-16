@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Package;
+use App\Models\Product;
 use App\Models\PromoCode;
 use Illuminate\Http\Request;
 
@@ -156,6 +158,27 @@ class PromoCodeController extends Controller
         $promo_code->update($data);
 
         return response()->json(['success' => true, 'data' => $promo_code->fresh()]);
+    }
+
+    public function detachPackage(PromoCode $promo, Package $package)
+    {
+        // detach itu idempotent: kalau relasi ga ada, ga error
+        $promo->packages()->detach($package->id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Package detached',
+        ]);
+    }
+
+    public function detachProduct(PromoCode $promo, Product $product)
+    {
+        $promo->products()->detach($product->id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Product detached',
+        ]);
     }
 
     public function destroy(PromoCode $promo_code)

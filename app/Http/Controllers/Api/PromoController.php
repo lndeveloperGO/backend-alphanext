@@ -3,81 +3,41 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\PromoCode;
+use App\Services\OrderService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class PromoController extends Controller
 {
+    public function __construct(private OrderService $orders) {}
+
     public function validateCode(Request $request)
     {
         $data = $request->validate([
-            'code' => ['required', 'string', 'max:50'],
-            'amount' => ['required', 'integer', 'min:1'], // harga paket / total order
+            'product_id' => ['required','integer','exists:products,id'],
+            'promo_code' => ['required','string','max:50'],
         ]);
 
-        $code = strtoupper(trim($data['code']));
-        $amount = (int) $data['amount'];
+        try {
+            $res = $this->orders->previewPromo(
+                userId: $request->user()->id,
+                productId: (int) $data['product_id'],
+                promoCode: (string) $data['promo_code']
+            );
 
-        $promo = PromoCode::where('code', $code)->first();
+            return response()->json([
+                'success' => true,
+                'data' => $res,
+            ]);
+        } catch (ValidationException $e) {
+            // biar FE dapet message yang sama dengan create order
+            $msg = $e->errors()['promo_code'][0] ?? 'Promo tidak valid.';
 
-        if (!$promo || !$promo->is_active) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kode promo tidak valid.',
+                'message' => $msg,
+                'errors' => $e->errors(),
             ], 422);
         }
-
-        $now = now();
-        if ($promo->starts_at && $now->lt($promo->starts_at)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Kode promo belum berlaku.',
-            ], 422);
-        }
-        if ($promo->ends_at && $now->gt($promo->ends_at)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Kode promo sudah kadaluarsa.',
-            ], 422);
-        }
-
-        if (!is_null($promo->max_uses) && $promo->used_count >= $promo->max_uses) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Kuota kode promo sudah habis.',
-            ], 422);
-        }
-
-        if (($promo->min_purchase ?? 0) > 0 && $amount < $promo->min_purchase) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Minimal pembelian untuk promo ini adalah ' . $promo->min_purchase . '.',
-            ], 422);
-        }
-
-
-        // hitung diskon
-        if ($promo->type === 'percent') {
-            $discount = (int) floor($amount * ($promo->value / 100));
-        } else { // fixed
-            $discount = (int) $promo->value;
-        }
-
-        // diskon tidak boleh lebih besar dari amount
-        $discount = min($discount, $amount);
-        $finalAmount = max(0, $amount - $discount);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'code' => $promo->code,
-                'type' => $promo->type,
-                'value' => $promo->value,
-                'min_purchase' => (int) ($promo->min_purchase ?? 0),
-                'amount' => $amount,
-                'discount' => $discount,
-                'final_amount' => $finalAmount,
-            ],
-        ]);
     }
 }

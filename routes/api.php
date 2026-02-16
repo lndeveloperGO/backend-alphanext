@@ -21,7 +21,7 @@ use App\Http\Controllers\Api\Admin\ProductController;
 use App\Http\Controllers\Api\UserDashboardController;
 use App\Http\Controllers\Api\PublicProductController;
 use App\Http\Controllers\Api\UserStatisticsDashboardController;
-use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\OrderPaymentController;
 use App\Http\Controllers\Api\DuitkuCallbackController;
 use App\Http\Controllers\Api\RankingController;
 use App\Http\Controllers\Api\OrderController;
@@ -31,7 +31,6 @@ use App\Http\Controllers\Api\UserMaterialController;
 use App\Http\Controllers\Api\Admin\AdminMaterialController;
 use App\Http\Controllers\Api\Admin\AdminMaterialPartController;
 use App\Http\Controllers\Api\Admin\AdminPackageMaterialController;
-use App\Http\Controllers\Api\CheckoutController;
 
 
 /*
@@ -81,8 +80,7 @@ Route::prefix('public')->group(function () {
 */
 Route::middleware('auth:sanctum')->group(function () {
     // payment
-    Route::post('/products/{product}/payment-methods', [PaymentController::class, 'paymentMethods']);
-    Route::post('/products/{product}/pay', [PaymentController::class, 'payProduct']);
+     Route::post('/orders/{order}/pay', [OrderPaymentController::class, 'pay']);
 
     // attempt / tryout
     Route::post('/packages/{package}/attempts', [AttemptController::class, 'start']);
@@ -171,6 +169,9 @@ Route::middleware(['auth:sanctum', 'admin'])
         Route::get('promo-codes/{promo_code}/assignments', [PromoCodeController::class, 'assignments']);
         Route::put('promo-codes/{promo}/packages', [PromoCodeController::class, 'syncPackages']);
         Route::put('promo-codes/{promo}/products', [PromoCodeController::class, 'syncProducts']);
+        // DELETE single assignment
+        Route::delete('promo-codes/{promo}/packages/{package}', [PromoCodeController::class, 'detachPackage']);
+        Route::delete('promo-codes/{promo}/products/{product}', [PromoCodeController::class, 'detachProduct']);
 
         // products
         Route::apiResource('products', ProductController::class);

@@ -22,33 +22,34 @@ class OrderService
                 ->with(['package', 'packages'])
                 ->findOrFail($productId);
 
-            $gross = (int) $product->price; // sebelum promo
+            $gross = (int) $product->price;
             $packageIds = $this->extractPackageIds($product);
 
-            // apply promo: product-rule (kalau ada) -> fallback package-rule
             [$final, $discount, $promo] = $this->applyPromoIfAny(
-                $userId,
-                $promoCode,
-                $gross,
-                (int) $product->id,
-                $packageIds
+                userId: $userId,
+                code: $promoCode,
+                gross: $gross,
+                productId: (int) $product->id,
+                packageIds: $packageIds
             );
 
             $status = $final === 0 ? 'paid' : 'pending';
+            $expireMinutes = (int) config('orders.expire_minutes', 15);
 
             $order = Order::create([
                 'user_id' => $userId,
-                'product_id' => $product->id,
+                'product_id' => (int) $product->id,
                 'merchant_order_id' => $this->genMerchantOrderId(),
                 'amount' => $final,
                 'discount' => $discount,
-                'promo_code' => $promo?->code, // simpan yang valid saja
+                'promo_code' => $promo?->code,
+                'promo_code_id' => $promo?->id, // ✅ masukin biar konsisten dgn schema kamu
                 'status' => $status,
                 'paid_at' => $status === 'paid' ? now() : null,
-                'expires_at' => $status === 'pending' ? now()->addMinutes(15) : null,
+                'expires_at' => $status === 'pending' ? now()->addMinutes($expireMinutes) : null,
             ]);
 
-            // isi order_items (berisi package yang didapat)
+            // order_items
             if ($product->type === 'single') {
                 abort_if(!$product->package_id, 422, 'Product single belum punya package_id.');
                 OrderItem::create([
@@ -68,27 +69,63 @@ class OrderService
                 }
             }
 
-            // reserve slot promo (pending) per order
+            // reserve promo
             if ($promo) {
                 PromoRedemption::create([
-                    'promo_code_id' => $promo->id,
+                    'promo_code_id' => (int) $promo->id,
                     'user_id' => $userId,
                     'order_id' => $order->id,
                     'status' => 'pending',
                 ]);
             }
 
-            // kalau free, langsung grant entitlement + finalize promo
             if ($order->status === 'paid') {
                 $this->grantUserPackages($order);
-
-                if ($promo) {
-                    $this->consumePromoOnPaid($order, $promo);
-                }
+                if ($promo) $this->consumePromoOnPaid($order, $promo);
             }
 
             return $order->load(['product:id,name,type,price', 'items']);
         });
+    }
+
+
+    public function previewPromo(int $userId, int $productId, string $promoCode): array
+    {
+        $product = Product::where('is_active', true)
+            ->with(['package', 'packages'])
+            ->findOrFail($productId);
+
+        $gross = (int) $product->price;
+
+        // packageIds dari product (single/bundle)
+        $packageIds = $this->extractPackageIds($product);
+
+        // pakai rules yang sama persis dengan create order (eligible + once/user + kuota pending+used)
+        [$final, $discount, $promo] = $this->applyPromoIfAny(
+            userId: $userId,
+            code: $promoCode,
+            gross: $gross,
+            productId: (int) $product->id,
+            packageIds: $packageIds
+        );
+
+        return [
+            'promo' => [
+                'id' => (int) $promo->id,
+                'code' => $promo->code,
+                'type' => $promo->type,
+                'value' => (int) $promo->value,
+            ],
+            'product' => [
+                'id' => (int) $product->id,
+                'name' => $product->name,
+                'type' => $product->type,
+                'price' => $gross,
+            ],
+            'gross' => $gross,
+            'discount' => $discount,
+            'final_amount' => $final,
+        ];
     }
 
     public function markPaid(Order $order): Order
@@ -113,6 +150,33 @@ class OrderService
 
             return $order->fresh()->load(['product:id,name,type,price', 'items']);
         });
+    }
+
+    public function markExpired(Order $order, ?array $reasonPayload = null): Order
+    {
+        return DB::transaction(function () use ($order, $reasonPayload) {
+            $order = Order::lockForUpdate()->findOrFail($order->id);
+
+            if ($order->status !== 'pending') {
+                return $order->load(['product:id,name,type,price', 'items']);
+            }
+
+            $order->update([
+                'status' => 'expired',
+                'raw_callback' => $reasonPayload ?: $order->raw_callback,
+            ]);
+
+            $this->voidPromoIfAny($order);
+
+            return $order->fresh()->load(['product:id,name,type,price', 'items']);
+        });
+    }
+
+    public function shouldExpire(Order $order): bool
+    {
+        return $order->status === 'pending'
+            && $order->expires_at
+            && now()->greaterThan($order->expires_at);
     }
 
     /**
@@ -179,58 +243,76 @@ class OrderService
         if (!$code) return [$gross, 0, null];
 
         $code = strtoupper(trim($code));
+
+        /** @var \App\Models\PromoCode|null $promo */
         $promo = PromoCode::where('code', $code)->first();
+
+        // promo wajib valid
         if (!$promo || !$promo->is_active) {
             throw ValidationException::withMessages([
                 'promo_code' => ['Kode promo tidak valid.'],
             ]);
         }
 
+        // window waktu + min purchase
         $now = now();
+
         if ($promo->starts_at && $now->lt($promo->starts_at)) {
             throw ValidationException::withMessages([
                 'promo_code' => ['Promo belum mulai.'],
             ]);
         }
+
         if ($promo->ends_at && $now->gt($promo->ends_at)) {
             throw ValidationException::withMessages([
                 'promo_code' => ['Promo sudah berakhir.'],
             ]);
         }
-        if (($promo->min_purchase ?? 0) > 0 && $gross < $promo->min_purchase) {
+
+        if (($promo->min_purchase ?? 0) > 0 && $gross < (int) $promo->min_purchase) {
             throw ValidationException::withMessages([
                 'promo_code' => ['Minimal pembelian belum terpenuhi.'],
             ]);
         }
 
-        // PRIORITAS: cek product assignment dulu
-        $hasProductRule = DB::table('promo_code_products')
+        // harus ada assignment minimal ke product/package
+        $productRuleExists = DB::table('promo_code_products')
             ->where('promo_code_id', $promo->id)
             ->exists();
 
-        if ($hasProductRule) {
+        $packageRuleExists = DB::table('promo_code_packages')
+            ->where('promo_code_id', $promo->id)
+            ->exists();
+
+        if (!$productRuleExists && !$packageRuleExists) {
+            throw ValidationException::withMessages([
+                'promo_code' => ['Promo belum di-assign ke product atau package manapun.'],
+            ]);
+        }
+
+        // eligible kalau match salah satu:
+        // 1) match product_id
+        // 2) match salah satu package_id dari product (single/bundle)
+        $eligible = false;
+
+        if ($productRuleExists) {
             $eligible = DB::table('promo_code_products')
                 ->where('promo_code_id', $promo->id)
                 ->where('product_id', $productId)
                 ->exists();
+        }
 
-            if (!$eligible) {
-                throw ValidationException::withMessages([
-                    'promo_code' => ['Promo tidak berlaku untuk produk ini.'],
-                ]);
-            }
-        } else {
-            // fallback ke package rule
+        if (!$eligible && $packageRuleExists) {
             $eligible = DB::table('promo_code_packages')
                 ->where('promo_code_id', $promo->id)
                 ->whereIn('package_id', $packageIds)
                 ->exists();
+        }
 
-            if (!$eligible) {
-                throw ValidationException::withMessages([
-                    'promo_code' => ['Promo tidak berlaku untuk paket ini.'],
-                ]);
-            }
+        if (!$eligible) {
+            throw ValidationException::withMessages([
+                'promo_code' => ['Promo tidak berlaku untuk produk/paket ini.'],
+            ]);
         }
 
         // sekali per user (pending/used = sudah pernah pakai / sedang proses)
@@ -253,21 +335,23 @@ class OrderService
                 ->where('status', 'pending')
                 ->count();
 
-            if (($promo->used_count + $pending) >= $promo->max_uses) {
+            if (((int) $promo->used_count + (int) $pending) >= (int) $promo->max_uses) {
                 throw ValidationException::withMessages([
                     'promo_code' => ['Kuota promo sudah habis.'],
                 ]);
             }
         }
 
+        // hitung diskon
         $discount = $promo->type === 'percent'
-            ? (int) floor($gross * ($promo->value / 100))
+            ? (int) floor($gross * ((int) $promo->value / 100))
             : (int) $promo->value;
 
         $discount = min($discount, $gross);
 
         return [max(0, $gross - $discount), $discount, $promo];
     }
+
 
     /**
      * Finalize promo when order becomes PAID:
