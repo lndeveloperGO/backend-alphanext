@@ -11,13 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('promo_code_products', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('promo_code_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('product_id')->constrained()->cascadeOnDelete();
-            $table->timestamps();
-
-            $table->unique(['promo_code_id', 'product_id']);
+        Schema::table('orders', function (Blueprint $table) {
+            $table->foreignId('promo_code_id')
+                ->nullable()
+                ->after('promo_code')
+                ->constrained('promo_codes')
+                ->nullOnDelete();
         });
     }
 
@@ -27,7 +26,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            //
+            $table->dropForeign(['promo_code_id']);
+            $table->dropColumn('promo_code_id');
         });
     }
 };

@@ -28,6 +28,18 @@ class AdminOrderController extends Controller
 
     public function markPaid(Order $order)
     {
+        // Kalau pakai midtrans, cancel tagihan di midtrans biar gak double payment
+        if ($order->payment_method === 'midtrans' && $order->merchant_order_id) {
+            try {
+                $this->midtrans->cancelTransaction($order->merchant_order_id);
+            } catch (\Throwable $e) {
+                logger()->error('Midtrans cancel error on markPaid', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
         $order = $this->orders->markPaid($order);
 
         return response()->json(['success' => true, 'data' => $order]);
