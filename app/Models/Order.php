@@ -8,11 +8,23 @@ use Illuminate\Database\Eloquent\Model;
 class Order extends Model
 {
     protected $fillable = [
-        'user_id','product_id','merchant_order_id','amount','status',
+        'user_id',
+        'product_id',
+        'merchant_order_id',
+        'amount',
+        'status',
         'expires_at',
-        'duitku_reference','payment_url','payment_method',
-        'promo_code','promo_code_id','discount','paid_at','raw_callback'
+        'payment_url',
+        'midtrans_token',
+        'payment_method',
+        'promo_code',
+        'promo_code_id',
+        'discount',
+        'paid_at',
+        'raw_callback'
     ];
+
+
 
     protected $casts = [
         'expires_at' => 'datetime',

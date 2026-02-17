@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\UserMaterialController;
 use App\Http\Controllers\Api\Admin\AdminMaterialController;
 use App\Http\Controllers\Api\Admin\AdminMaterialPartController;
 use App\Http\Controllers\Api\Admin\AdminPackageMaterialController;
+use App\Http\Controllers\Api\MidtransWebhookController;
 
 
 /*
@@ -121,10 +122,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| DUITKU PAYMENT CALLBACK (public)
+| MidTrans (public)
 |--------------------------------------------------------------------------
 */
-Route::post('/payments/duitku/callback', [DuitkuCallbackController::class, 'handle']);
+Route::post('/payments/midtrans/notify', [MidtransWebhookController::class, 'notify']);
 
 
 /*
@@ -179,6 +180,7 @@ Route::middleware(['auth:sanctum', 'admin'])
         // order
         Route::get('/orders', [AdminOrderController::class, 'index']);
         Route::post('/orders/{order}/mark-paid', [AdminOrderController::class, 'markPaid']);
+        Route::post('/orders/{order}/cancel', [AdminOrderController::class, 'cancel']);
 
         // materials
         Route::apiResource('materials', AdminMaterialController::class);

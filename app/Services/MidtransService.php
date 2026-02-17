@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\User;
 use Midtrans\Config;
 use Midtrans\Snap;
+use Midtrans\Transaction;
 
 class MidtransService
 {
@@ -76,5 +77,17 @@ class MidtransService
 
         $computed = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
         return hash_equals($computed, $signature);
+    }
+
+    public function cancelTransaction(string $orderId): void
+    {
+        try {
+            Transaction::cancel($orderId);
+        } catch (\Exception $e) {
+            logger()->error('Midtrans cancel failed', [
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
