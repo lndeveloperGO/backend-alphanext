@@ -43,6 +43,9 @@ use App\Http\Controllers\Api\MidtransWebhookController;
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
 
     // logout butuh login
     Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
@@ -57,6 +60,7 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/me/profile', [AuthController::class, 'updateProfile']);
+    Route::put('/me/password', [AuthController::class, 'changePassword']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 

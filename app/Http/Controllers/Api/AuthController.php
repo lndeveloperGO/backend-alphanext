@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use App\Notifications\ResetPasswordNotification;
 
 class AuthController extends Controller
 {
@@ -88,10 +91,18 @@ class AuthController extends Controller
 
         $user = User::where('email', $data['email'])->first();
 
-        if (!$user || !Hash::check($data['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Email atau password salah.'],
-            ]);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email tidak terdaftar.',
+            ], 401);
+        }
+
+        if (!Hash::check($data['password'], $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Password salah atau email tidak terdaftar.',
+            ], 401);
         }
 
         // Optional: hapus token lama kalau mau 1 device
@@ -181,6 +192,89 @@ class AuthController extends Controller
                 'school_origin' => $user->school_origin,
                 'birth_date' => optional($user->birth_date)->toDateString(),
             ],
+        ]);
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email tidak ditemukan.',
+            ], 404);
+        }
+
+        $token = Password::createToken($user);
+        $user->notify(new ResetPasswordNotification($token));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Link reset password telah dikirim ke email Anda.',
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password)
+                ])->setRememberToken(Str::random(60));
+
+                $user->save();
+            }
+        );
+
+        if ($status == Password::PASSWORD_RESET) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Password berhasil diperbarui.',
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Token tidak valid atau sudah kedaluwarsa.',
+        ], 400);
+    }
+
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Password saat ini salah.',
+                'errors' => [
+                    'current_password' => ['Password saat ini salah.']
+                ]
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->password)
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password berhasil diubah.',
         ]);
     }
 
