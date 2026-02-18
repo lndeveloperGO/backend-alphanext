@@ -122,6 +122,14 @@ class AdminUserController extends Controller
             ], 422);
         }
 
+        // safety: jangan delete sesama admin
+        if ($user->role === 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak boleh menghapus sesama admin.',
+            ], 422);
+        }
+
         $user->delete();
 
         return response()->json([
