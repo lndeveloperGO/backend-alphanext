@@ -201,6 +201,7 @@ class OrderService
         $order->loadMissing(['product', 'items']);
 
         $accessDays = (int) ($order->product?->access_days ?? 0);
+        $grantsAnswerKey = (bool) ($order->product?->grants_answer_key ?? false);
 
         foreach ($order->items as $it) {
             $packageId = (int) $it->package_id;
@@ -209,17 +210,27 @@ class OrderService
                 ? $now->copy()->addDays((int) $accessDays)
                 : null;
 
-            UserPackage::updateOrCreate(
-                [
+            $up = UserPackage::where('user_id', $order->user_id)
+                ->where('package_id', $packageId)
+                ->first();
+
+            if ($up) {
+                $up->update([
+                    'order_id' => $order->id,
+                    'starts_at' => $now,
+                    'ends_at' => $endsAt,
+                    'has_answer_key' => $up->has_answer_key || $grantsAnswerKey,
+                ]);
+            } else {
+                UserPackage::create([
                     'user_id' => $order->user_id,
                     'package_id' => $packageId,
                     'order_id' => $order->id,
-                ],
-                [
                     'starts_at' => $now,
                     'ends_at' => $endsAt,
-                ]
-            );
+                    'has_answer_key' => $grantsAnswerKey,
+                ]);
+            }
         }
     }
 

@@ -95,6 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/attempts/{attempt}/answers', [AttemptController::class, 'answer']);
     Route::post('/attempts/{attempt}/mark', [AttemptController::class, 'mark']);
     Route::post('/attempts/{attempt}/submit', [AttemptController::class, 'submit']);
+    Route::get('/attempts/{attempt}/review', [AttemptController::class, 'review']);
 
     // history
     Route::get('/user/attempts', [AttemptController::class, 'history']);

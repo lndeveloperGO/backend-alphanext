@@ -66,12 +66,18 @@ class AttemptController extends Controller
         $marked = (int) ($agg->marked ?? 0);
 
 
+        $hasAnswerKey = UserPackage::where('user_id', $request->user()->id)
+            ->where('package_id', $attempt->package_id)
+            ->where('has_answer_key', true)
+            ->exists();
+
         return response()->json([
             'success' => true,
             'data' => [
                 'attempt_id' => $attempt->id,
                 'package_id' => $attempt->package_id,
                 'status' => $attempt->status,
+                'has_answer_key' => $hasAnswerKey,
                 'started_at' => $attempt->started_at,
                 'ends_at' => $attempt->ends_at,
                 'submitted_at' => $attempt->submitted_at,
@@ -113,6 +119,13 @@ class AttemptController extends Controller
         $row = $answers[$index];
         $q = $row->question;
 
+        $hasAnswerKey = UserPackage::where('user_id', $request->user()->id)
+            ->where('package_id', $attempt->package_id)
+            ->where('has_answer_key', true)
+            ->exists();
+
+        $showAnswerKey = $hasAnswerKey && $attempt->status === 'submitted';
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -121,16 +134,19 @@ class AttemptController extends Controller
                 'question' => $q->question,
                 'question_type' => $q->question_type,
                 'image_url' => $q->image_url,
+                'explanation' => $showAnswerKey ? $q->explanation : null,
                 'options' => $q->options->map(fn($opt) => [
                     'id' => $opt->id,
                     'label' => $opt->label,
                     'text' => $opt->text,
                     'image_url' => $opt->image_url,
+                    'is_correct' => $showAnswerKey ? ($opt->score_value > 0) : null,
                 ]),
                 'selected_option_id' => $row->selected_option_id,
                 'is_marked' => (bool) $row->is_marked,
                 'remaining_seconds' => $this->attempts->remainingSeconds($attempt),
                 'status' => $attempt->status,
+                'has_answer_key' => $hasAnswerKey,
             ],
         ]);
     }
@@ -208,11 +224,17 @@ class AttemptController extends Controller
             ? (int) round(($answered / $totalQuestions) * 100)
             : 0;
 
+        $hasAnswerKey = UserPackage::where('user_id', $request->user()->id)
+            ->where('package_id', $attempt->package_id)
+            ->where('has_answer_key', true)
+            ->exists();
+
         return response()->json([
             'success' => true,
             'data' => [
                 'attempt_id' => $attempt->id,
                 'status' => $attempt->status,
+                'has_answer_key' => $hasAnswerKey,
                 'submitted_at' => $attempt->submitted_at,
                 'total_score' => $attempt->total_score,
                 'passing_score' => $passingScore,
@@ -230,12 +252,71 @@ class AttemptController extends Controller
         ]);
     }
 
+    // GET /api/attempts/{attempt}/review
+    public function review(Request $request, Attempt $attempt)
+    {
+        $this->authorizeAttemptOwner($request, $attempt);
+
+        // Check if user has answer key access for this package
+        $hasAccess = UserPackage::where('user_id', $request->user()->id)
+            ->where('package_id', $attempt->package_id)
+            ->where('has_answer_key', true)
+            ->exists();
+
+        abort_if(!$hasAccess, 403, 'Anda tidak memiliki akses kunci jawaban untuk paket ini.');
+
+        $attempt->load('package');
+        $answers = $attempt->answers()
+            ->orderBy('id')
+            ->with(['question.options'])
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'attempt_id' => $attempt->id,
+                'package_name' => $attempt->package->name,
+                'total_score' => $attempt->total_score,
+                'status' => $attempt->status,
+                'submitted_at' => $attempt->submitted_at,
+                'results' => $answers->map(function ($ans, $idx) {
+                    $q = $ans->question;
+                    return [
+                        'no' => $idx + 1,
+                        'question_id' => $q->id,
+                        'question' => $q->question,
+                        'question_type' => $q->question_type,
+                        'image_url' => $q->image_url,
+                        'explanation' => $q->explanation,
+                        'options' => $q->options->map(fn($opt) => [
+                            'id' => $opt->id,
+                            'label' => $opt->label,
+                            'text' => $opt->text,
+                            'image_url' => $opt->image_url,
+                            'is_correct' => $opt->score_value > 0,
+                        ]),
+                        'user_answer' => [
+                            'selected_option_id' => $ans->selected_option_id,
+                            'score_awarded' => $ans->score_awarded,
+                            'is_correct' => $ans->score_awarded > 0,
+                            'answered_at' => $ans->answered_at,
+                        ],
+                    ];
+                }),
+            ],
+        ]);
+    }
+
     // GET /api/user/attempts
     public function history(Request $request)
     {
         $rows = Attempt::query()
             ->where('attempts.user_id', $request->user()->id)
             ->join('packages', 'packages.id', '=', 'attempts.package_id')
+            ->leftJoin('user_packages', function ($join) use ($request) {
+                $join->on('user_packages.package_id', '=', 'attempts.package_id')
+                    ->where('user_packages.user_id', '=', $request->user()->id);
+            })
             ->select([
                 'attempts.id',
                 'attempts.package_id',
@@ -249,6 +330,7 @@ class AttemptController extends Controller
                 'packages.name as package_name',
                 'packages.type as package_type',
                 'packages.category_id as package_category_id',
+                'user_packages.has_answer_key',
             ])
             ->orderByDesc('attempts.id')
             ->paginate(20);
@@ -259,6 +341,7 @@ class AttemptController extends Controller
                 'id' => (int) $r->id,
                 'package_id' => (int) $r->package_id,
                 'status' => $r->status,
+                'has_answer_key' => (bool) $r->has_answer_key,
                 'started_at' => $r->started_at,
                 'ends_at' => $r->ends_at,
                 'submitted_at' => $r->submitted_at,

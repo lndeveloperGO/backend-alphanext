@@ -11,7 +11,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $q = Product::query()
-            ->select(['id','type','name','package_id','price','access_days','is_active','created_at'])
+            ->select(['id','type','name','package_id','price','access_days','is_active','grants_answer_key','created_at'])
             ->with([
                 'package:id,name,type,category_id',
                 'packages:id,name,type,category_id',
@@ -37,6 +37,7 @@ class ProductController extends Controller
             'price' => ['required', 'integer', 'min:0'],
             'access_days' => ['sometimes', 'integer', 'min:0', 'max:3650'], // default 30 kalau gak dikirim
             'is_active' => ['required', 'boolean'],
+            'grants_answer_key' => ['sometimes', 'boolean'],
 
             // SINGLE
             'package_id' => ['required_if:type,single', 'nullable', 'integer', 'exists:packages,id'],
@@ -68,6 +69,7 @@ class ProductController extends Controller
             'price' => $data['price'],
             'access_days' => $data['access_days'] ?? 30, // ✅ default 30 hari
             'is_active' => $data['is_active'],
+            'grants_answer_key' => $data['grants_answer_key'] ?? false,
         ]);
 
         if ($type === 'bundle') {
@@ -109,6 +111,7 @@ class ProductController extends Controller
             'price' => ['sometimes', 'required', 'integer', 'min:0'],
             'access_days' => ['sometimes', 'integer', 'min:0', 'max:3650'], // ✅ default tetap existing kalau gak dikirim
             'is_active' => ['sometimes', 'required', 'boolean'],
+            'grants_answer_key' => ['sometimes', 'boolean'],
 
             // SINGLE
             'package_id' => ['required_if:type,single', 'nullable', 'integer', 'exists:packages,id'],
@@ -145,6 +148,7 @@ class ProductController extends Controller
             'price' => $data['price'] ?? $product->price,
             'access_days' => $data['access_days'] ?? $product->access_days,
             'is_active' => $data['is_active'] ?? $product->is_active,
+            'grants_answer_key' => $data['grants_answer_key'] ?? $product->grants_answer_key,
         ]);
 
         if ($type === 'bundle') {

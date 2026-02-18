@@ -6,11 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
 {
-    protected $fillable = ['name', 'type', 'package_id', 'price', 'access_days', 'is_active'];
+    protected $fillable = ['name', 'type', 'package_id', 'price', 'access_days', 'is_active', 'grants_answer_key'];
 
     protected $casts = [
         'is_active' => 'boolean',
         'access_days' => 'integer',
+        'grants_answer_key' => 'boolean',
     ];
 
     // SINGLE product (legacy)
