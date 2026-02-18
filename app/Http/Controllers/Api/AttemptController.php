@@ -188,10 +188,21 @@ class AttemptController extends Controller
         $this->authorizeAttemptOwner($request, $attempt);
 
         $attempt = $this->attempts->submit($attempt);
+        $attempt->load('package');
 
         $totalQuestions = $attempt->answers()->count();
         $answered = $attempt->answers()->whereNotNull('selected_option_id')->count();
         $unanswered = max(0, $totalQuestions - $answered);
+
+        $correctCount = $attempt->answers()->where('score_awarded', '>', 0)->count();
+        $wrongCount = $attempt->answers()
+            ->whereNotNull('selected_option_id')
+            ->where('score_awarded', 0)
+            ->count();
+
+        $accuracy = $totalQuestions > 0 ? round(($correctCount / $totalQuestions) * 100, 2) : 0;
+        $passingScore = (int) ($attempt->package->passing_score ?? 0);
+        $isPassed = $attempt->total_score >= $passingScore;
 
         $progressPercent = $totalQuestions > 0
             ? (int) round(($answered / $totalQuestions) * 100)
@@ -204,10 +215,15 @@ class AttemptController extends Controller
                 'status' => $attempt->status,
                 'submitted_at' => $attempt->submitted_at,
                 'total_score' => $attempt->total_score,
+                'passing_score' => $passingScore,
+                'is_passed' => $isPassed,
                 'summary' => [
                     'total_questions' => $totalQuestions,
                     'answered' => $answered,
                     'unanswered' => $unanswered,
+                    'correct' => $correctCount,
+                    'wrong' => $wrongCount,
+                    'accuracy' => $accuracy,
                     'progress_percent' => $progressPercent,
                 ],
             ],

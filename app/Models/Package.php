@@ -13,6 +13,7 @@ class Package extends Model
         'duration_seconds',
         'is_active',
         'is_free',
+        'passing_score',
     ];
 
     protected $casts = [
