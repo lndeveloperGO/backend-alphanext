@@ -105,6 +105,13 @@ class AuthController extends Controller
             ], 401);
         }
 
+        if (!$user->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akun Anda tidak aktif. Silakan hubungi admin.',
+            ], 403);
+        }
+
         // Optional: hapus token lama kalau mau 1 device
         // $user->tokens()->delete();
 

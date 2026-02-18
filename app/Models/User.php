@@ -26,6 +26,7 @@ class User extends Authenticatable
         'phone',
         'school_origin',
         'birth_date',
+        'is_active',
     ];
 
 

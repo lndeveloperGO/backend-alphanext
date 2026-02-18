@@ -119,10 +119,13 @@ class AttemptController extends Controller
                 'no' => $no,
                 'question_id' => $q->id,
                 'question' => $q->question,
+                'question_type' => $q->question_type,
+                'image_url' => $q->image_url,
                 'options' => $q->options->map(fn($opt) => [
                     'id' => $opt->id,
                     'label' => $opt->label,
                     'text' => $opt->text,
+                    'image_url' => $opt->image_url,
                 ]),
                 'selected_option_id' => $row->selected_option_id,
                 'is_marked' => (bool) $row->is_marked,

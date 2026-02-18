@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Admin\AdminPackageQuestionController;
 use App\Http\Controllers\Api\Catalog\CategoryCatalogController;
 use App\Http\Controllers\Api\Catalog\PackageCatalogController;
 use App\Http\Controllers\Api\Admin\QuestionBulkController;
+use App\Http\Controllers\Api\Admin\AdminQuestionImportController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\PromoCodeController;
 use App\Http\Controllers\Api\PromoController;
@@ -160,6 +161,7 @@ Route::middleware(['auth:sanctum', 'admin'])
         Route::apiResource('packages', AdminPackageController::class);
         Route::apiResource('questions', AdminQuestionController::class);
         Route::post('questions/bulk', [QuestionBulkController::class, 'store']);
+        Route::post('questions/import', [AdminQuestionImportController::class, 'import']);
 
         // options
         Route::post('questions/{question}/options', [AdminQuestionOptionController::class, 'store']);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\QuestionOption;
 use App\Models\Question;
+use Illuminate\Support\Facades\Storage;
 
 class AdminQuestionOptionController extends Controller
 {
@@ -14,8 +15,13 @@ class AdminQuestionOptionController extends Controller
         $data = $request->validate([
             'label' => ['required','string','max:5'],
             'text' => ['required','string'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             'score_value' => ['required','integer'],
         ]);
+
+        if ($request->hasFile('image')) {
+            $data['image'] = $request->file('image')->store('options', 'public');
+        }
 
         $opt = $question->options()->create($data);
 
@@ -27,8 +33,17 @@ class AdminQuestionOptionController extends Controller
         $data = $request->validate([
             'label' => ['sometimes','required','string','max:5'],
             'text' => ['sometimes','required','string'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             'score_value' => ['sometimes','required','integer'],
         ]);
+
+        if ($request->hasFile('image')) {
+            // delete old image if exists
+            if ($option->image) {
+                Storage::disk('public')->delete($option->image);
+            }
+            $data['image'] = $request->file('image')->store('options', 'public');
+        }
 
         $option->update($data);
 

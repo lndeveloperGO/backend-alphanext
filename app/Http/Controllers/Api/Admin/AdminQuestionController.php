@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Question;
+use Illuminate\Support\Facades\Storage;
 
 class AdminQuestionController extends Controller
 {
@@ -26,8 +27,14 @@ class AdminQuestionController extends Controller
         $data = $request->validate([
             'category_id' => ['required','integer','exists:categories,id'],
             'question' => ['required','string'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
+            'question_type' => ['required', 'string', 'in:text,image'],
             'explanation' => ['nullable','string'],
         ]);
+
+        if ($request->hasFile('image')) {
+            $data['image'] = $request->file('image')->store('questions', 'public');
+        }
 
         $q = Question::create($data);
 
@@ -46,8 +53,18 @@ class AdminQuestionController extends Controller
         $data = $request->validate([
             'category_id' => ['sometimes','required','integer','exists:categories,id'],
             'question' => ['sometimes','required','string'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
+            'question_type' => ['sometimes', 'required', 'string', 'in:text,image'],
             'explanation' => ['nullable','string'],
         ]);
+
+        if ($request->hasFile('image')) {
+            // delete old image if exists
+            if ($question->image) {
+                Storage::disk('public')->delete($question->image);
+            }
+            $data['image'] = $request->file('image')->store('questions', 'public');
+        }
 
         $question->update($data);
 
