@@ -18,7 +18,7 @@ class AuthController extends Controller
     {
         $normalizedPhone = null;
 
-        $data = validator($request->all(), [
+        $validator = validator($request->all(), [
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:150', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
@@ -36,15 +36,22 @@ class AuthController extends Controller
                         return;
                     }
 
-                    if (User::where('phone', $normalizedPhone)->exists()) {
-                        $fail('Nomor handphone sudah digunakan.');
-                    }
                 }
             ],
 
             'school_origin' => ['required', 'string', 'max:150'],
             'birth_date' => ['required', 'date', 'before:today'],
-        ])->validate();
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $data = $validator->validated();
 
         // pakai hasil normalisasi dari closure
         $data['phone'] = $normalizedPhone;

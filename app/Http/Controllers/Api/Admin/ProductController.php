@@ -51,13 +51,15 @@ class ProductController extends Controller
 
         $type = $data['type'];
 
-        // enforce unique untuk SINGLE (1 package = 1 product single)
+        // enforce unique untuk SINGLE (1 package + 1 grants_answer_key combination)
         if ($type === 'single') {
-            $exists = Product::where('package_id', $data['package_id'])->exists();
+            $exists = Product::where('package_id', $data['package_id'])
+                ->where('grants_answer_key', $data['grants_answer_key'] ?? false)
+                ->exists();
             if ($exists) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Package sudah punya product.',
+                    'message' => 'Package dengan kombinasi grants_answer_key ini sudah punya product.',
                 ], 422);
             }
         }
@@ -125,16 +127,22 @@ class ProductController extends Controller
 
         $type = $data['type'] ?? $product->type;
 
-        // enforce unique untuk SINGLE jika package_id diubah / type jadi single
-        if ($type === 'single' && array_key_exists('package_id', $data)) {
+        // enforce unique untuk SINGLE jika package_id atau grants_answer_key diubah
+        if ($type === 'single') {
+            $pid = $data['package_id'] ?? $product->package_id;
+            $gak = array_key_exists('grants_answer_key', $data) 
+                ? $data['grants_answer_key'] 
+                : $product->grants_answer_key;
+
             $exists = Product::where('id', '!=', $product->id)
-                ->where('package_id', $data['package_id'])
+                ->where('package_id', $pid)
+                ->where('grants_answer_key', $gak)
                 ->exists();
 
             if ($exists) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Package sudah dipakai product lain.',
+                    'message' => 'Kombinasi Package dan grants_answer_key sudah dipakai product lain.',
                 ], 422);
             }
         }
