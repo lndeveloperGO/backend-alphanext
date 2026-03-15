@@ -17,12 +17,15 @@ class UserPackageController extends Controller
         // paket berbayar (hasil purchase)
         $paidPackages = DB::table('user_packages')
             ->join('packages', 'packages.id', '=', 'user_packages.package_id')
+            ->join('categories', 'categories.id', '=', 'packages.category_id')
             ->where('user_packages.user_id', $user->id)
             ->select([
                 'packages.id as package_id',
                 'packages.name',
                 'packages.type',
                 'packages.category_id',
+                'categories.name as category_name',
+                'categories.type as category_type',
                 'user_packages.starts_at',
                 'user_packages.ends_at',
             ])
@@ -36,6 +39,8 @@ class UserPackageController extends Controller
                     'name' => $p->name,
                     'type' => $p->type,
                     'category_id' => (int) $p->category_id,
+                    'category_name' => $p->category_name,
+                    'category_type' => $p->category_type,
                     'starts_at' => $p->starts_at,
                     'ends_at' => $p->ends_at,
                     'is_free' => false,
@@ -45,13 +50,16 @@ class UserPackageController extends Controller
 
         // paket gratis (always active)
         $freePackages = DB::table('packages')
-            ->where('is_active', true)
-            ->where('is_free', true)
+            ->join('categories', 'categories.id', '=', 'packages.category_id')
+            ->where('packages.is_active', true)
+            ->where('packages.is_free', true)
             ->select([
-                'id as package_id',
-                'name',
-                'type',
-                'category_id',
+                'packages.id as package_id',
+                'packages.name',
+                'packages.type',
+                'packages.category_id',
+                'categories.name as category_name',
+                'categories.type as category_type',
             ])
             ->get()
             ->map(fn ($p) => [
@@ -59,6 +67,8 @@ class UserPackageController extends Controller
                 'name' => $p->name,
                 'type' => $p->type,
                 'category_id' => (int) $p->category_id,
+                'category_name' => $p->category_name,
+                'category_type' => $p->category_type,
                 'starts_at' => null,
                 'ends_at' => null,
                 'is_free' => true,

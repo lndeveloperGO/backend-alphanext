@@ -13,6 +13,7 @@ class PublicProductController extends Controller
         $products = Product::query()
             ->where('is_active', true)
             ->with([
+                'category:id,name,type',
                 'package:id,name,type,category_id',
                 'packages:id,name,type,category_id',
             ])
@@ -33,6 +34,7 @@ class PublicProductController extends Controller
         abort_unless($product->is_active, 404);
 
         $product->load([
+            'category:id,name,type',
             'package:id,name,type,category_id,duration_seconds,is_active,is_free',
             'packages:id,name,type,category_id,duration_seconds,is_active,is_free',
         ]);
@@ -46,6 +48,11 @@ class PublicProductController extends Controller
                 'type' => $product->type, // single|bundle
                 'price' => (int) $product->price,
                 'is_active' => (bool) $product->is_active,
+                'category' => $product->category ? [
+                    'id' => $product->category->id,
+                    'name' => $product->category->name,
+                    'type' => $product->category->type,
+                ] : null,
 
                 // untuk single
                 'package' => $product->type === 'single'

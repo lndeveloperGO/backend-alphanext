@@ -35,6 +35,12 @@ use App\Http\Controllers\Api\Admin\AdminPackageMaterialController;
 use App\Http\Controllers\Api\MidtransWebhookController;
 use App\Http\Controllers\Api\Admin\AdminMidtransSettingController;
 use App\Http\Controllers\Api\MidtransConfigController;
+use App\Http\Controllers\Api\SelectionEventController;
+use App\Http\Controllers\Api\Admin\AdminNotificationController;
+use App\Http\Controllers\Api\UserNotificationController;
+use App\Http\Controllers\Api\SiteSettingController;
+use App\Http\Controllers\Api\Admin\AdminSiteSettingController;
+
 
 
 /*
@@ -80,6 +86,7 @@ Route::prefix('public')->group(function () {
     Route::get('/packages/{package}', [PackageController::class, 'show']);
 
     Route::get('/midtrans/config', [MidtransConfigController::class, 'show']);
+    Route::get('/site-settings', [SiteSettingController::class, 'index']);
 });
 
 
@@ -128,6 +135,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/materials', [UserMaterialController::class, 'index']);
     Route::get('/materials/{material}', [UserMaterialController::class, 'show']);
     Route::get('/packages/{package}/materials', [UserMaterialController::class, 'byPackage']);
+
+    // selection-events
+    Route::get('/selection-events', [SelectionEventController::class, 'index']);
+    Route::get('/selection-events/{selectionEvent}', [SelectionEventController::class, 'show']);
+
+    // notifications
+    Route::get('/notifications', [UserNotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [UserNotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [UserNotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{id}', [UserNotificationController::class, 'destroy']);
 
     
 });
@@ -209,4 +226,14 @@ Route::middleware(['auth:sanctum', 'admin'])
         // midtrans settings
         Route::get('/midtrans-settings', [AdminMidtransSettingController::class, 'index']);
         Route::post('/midtrans-settings', [AdminMidtransSettingController::class, 'store']);
+        // selection-events
+        Route::apiResource('selection-events', SelectionEventController::class);
+
+        // notifications
+        Route::post('/notifications/send', [AdminNotificationController::class, 'send']);
+
+        // site settings
+        Route::get('/site-settings', [AdminSiteSettingController::class, 'index']);
+        Route::post('/site-settings/{id}', [AdminSiteSettingController::class, 'update']);
     });
+

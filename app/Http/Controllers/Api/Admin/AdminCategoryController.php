@@ -22,6 +22,7 @@ class AdminCategoryController extends Controller
     {
         $data = $request->validate([
             'name' => ['required','string','max:150'],
+            'type' => ['sometimes','string','in:tryout,bimbel'],
             'parent_id' => ['nullable','integer','exists:categories,id'],
         ]);
 
@@ -39,6 +40,7 @@ class AdminCategoryController extends Controller
     {
         $data = $request->validate([
             'name' => ['sometimes','required','string','max:150'],
+            'type' => ['sometimes','string','in:tryout,bimbel'],
             'parent_id' => ['nullable','integer','exists:categories,id'],
         ]);
 

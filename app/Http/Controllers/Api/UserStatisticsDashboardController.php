@@ -48,11 +48,14 @@ class UserStatisticsDashboardController extends Controller
                     'packages.name',
                     'packages.type',
                     'packages.category_id',
+                    'categories.type as category_type',
+                    'categories.name as category_name',
                     'packages.is_free',
                     'packages.is_active',
                     'user_packages.starts_at',
                     'user_packages.ends_at',
                 ])
+                ->join('categories', 'categories.id', '=', 'packages.category_id')
                 ->orderByDesc('user_packages.id')
                 ->limit(50)
                 ->get()
@@ -67,6 +70,8 @@ class UserStatisticsDashboardController extends Controller
                         'name' => $p->name,
                         'type' => $p->type,
                         'category_id' => (int) $p->category_id,
+                        'category_type' => $p->category_type,
+                        'category_name' => $p->category_name,
                         'starts_at' => $p->starts_at,
                         'ends_at' => $p->ends_at,
                         'status' => $status,
@@ -80,12 +85,15 @@ class UserStatisticsDashboardController extends Controller
                 ->where('is_active', true)
                 ->where('is_free', true)
                 ->select([
-                    'id as package_id',
-                    'name',
-                    'type',
-                    'category_id',
+                    'packages.id as package_id',
+                    'packages.name',
+                    'packages.type',
+                    'packages.category_id',
+                    'categories.type as category_type',
+                    'categories.name as category_name',
                 ])
-                ->orderByDesc('id')
+                ->join('categories', 'categories.id', '=', 'packages.category_id')
+                ->orderByDesc('packages.id')
                 ->limit(50)
                 ->get()
                 ->map(fn ($p) => [
@@ -93,6 +101,8 @@ class UserStatisticsDashboardController extends Controller
                     'name' => $p->name,
                     'type' => $p->type,
                     'category_id' => (int) $p->category_id,
+                    'category_type' => $p->category_type,
+                    'category_name' => $p->category_name,
                     'starts_at' => null,
                     'ends_at' => null,
                     'status' => 'active',

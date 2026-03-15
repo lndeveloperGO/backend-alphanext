@@ -6,13 +6,18 @@ use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
 {
-    protected $fillable = ['name', 'type', 'package_id', 'price', 'access_days', 'is_active', 'grants_answer_key'];
+    protected $fillable = ['name', 'type', 'category_id', 'package_id', 'price', 'access_days', 'is_active', 'grants_answer_key'];
 
     protected $casts = [
         'is_active' => 'boolean',
         'access_days' => 'integer',
         'grants_answer_key' => 'boolean',
     ];
+    
+    public function category()
+    {
+        return $this->belongsTo(\App\Models\Category::class);
+    }
 
     // SINGLE product (legacy)
     public function package()

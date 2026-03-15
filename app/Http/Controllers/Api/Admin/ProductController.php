@@ -11,8 +11,9 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $q = Product::query()
-            ->select(['id','type','name','package_id','price','access_days','is_active','grants_answer_key','created_at'])
+            ->select(['id','type','name','package_id','price','access_days','is_active','grants_answer_key','category_id','created_at'])
             ->with([
+                'category:id,name,type',
                 'package:id,name,type,category_id',
                 'packages:id,name,type,category_id',
             ])
@@ -38,6 +39,7 @@ class ProductController extends Controller
             'access_days' => ['sometimes', 'integer', 'min:0', 'max:3650'], // default 30 kalau gak dikirim
             'is_active' => ['required', 'boolean'],
             'grants_answer_key' => ['sometimes', 'boolean'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
 
             // SINGLE
             'package_id' => ['required_if:type,single', 'nullable', 'integer', 'exists:packages,id'],
@@ -72,6 +74,7 @@ class ProductController extends Controller
             'access_days' => $data['access_days'] ?? 30, // ✅ default 30 hari
             'is_active' => $data['is_active'],
             'grants_answer_key' => $data['grants_answer_key'] ?? false,
+            'category_id' => $data['category_id'] ?? null,
         ]);
 
         if ($type === 'bundle') {
@@ -88,6 +91,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'data' => $product->load([
+                'category:id,name,type',
                 'package:id,name,type,category_id',
                 'packages:id,name,type,category_id',
             ]),
@@ -99,6 +103,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'data' => $product->load([
+                'category:id,name,type',
                 'package:id,name,type,category_id',
                 'packages:id,name,type,category_id',
             ]),
@@ -114,6 +119,7 @@ class ProductController extends Controller
             'access_days' => ['sometimes', 'integer', 'min:0', 'max:3650'], // ✅ default tetap existing kalau gak dikirim
             'is_active' => ['sometimes', 'required', 'boolean'],
             'grants_answer_key' => ['sometimes', 'boolean'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
 
             // SINGLE
             'package_id' => ['required_if:type,single', 'nullable', 'integer', 'exists:packages,id'],
@@ -157,6 +163,7 @@ class ProductController extends Controller
             'access_days' => $data['access_days'] ?? $product->access_days,
             'is_active' => $data['is_active'] ?? $product->is_active,
             'grants_answer_key' => $data['grants_answer_key'] ?? $product->grants_answer_key,
+            'category_id' => array_key_exists('category_id', $data) ? $data['category_id'] : $product->category_id,
         ]);
 
         if ($type === 'bundle') {
@@ -177,6 +184,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'data' => $product->fresh()->load([
+                'category:id,name,type',
                 'package:id,name,type,category_id',
                 'packages:id,name,type,category_id',
             ]),

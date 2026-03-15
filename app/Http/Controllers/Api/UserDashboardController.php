@@ -15,6 +15,7 @@ class UserDashboardController extends Controller
         $products = Product::query()
             ->where('is_active', true)
             ->with([
+                'category:id,name,type',
                 'package:id,name,type,category_id',
                 'packages:id,name,type,category_id',
             ])
