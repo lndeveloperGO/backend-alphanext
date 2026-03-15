@@ -28,7 +28,7 @@ class AdminUserController extends Controller
 
         $paginated = (clone $base)
             ->orderBy('id', 'desc')
-            ->paginate(20, ['id', 'name', 'email', 'role', 'is_active', 'created_at']);
+            ->paginate(20, ['id', 'name', 'email', 'role', 'is_active', 'school_origin', 'phone', 'birth_date', 'created_at']);
 
         // Summary counts (global, tidak ikut filter search/role/is_active)
         $summary = [

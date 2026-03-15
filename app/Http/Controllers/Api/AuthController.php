@@ -152,6 +152,7 @@ class AuthController extends Controller
                 'phone' => $user->phone,
                 'school_origin' => $user->school_origin,
                 'birth_date' => optional($user->birth_date)->toDateString(),
+                'createdAt' => optional($user->created_at)->toIso8601String(),
             ],
         ]);
     }

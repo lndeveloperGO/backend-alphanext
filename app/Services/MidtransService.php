@@ -12,24 +12,34 @@ class MidtransService
 {
     public function __construct()
     {
-        Config::$serverKey = (string) config('services.midtrans.server_key');
+        $settings = \App\Models\MidtransSetting::first();
 
-        Config::$isProduction = filter_var(
-            config('services.midtrans.is_production', false),
-            FILTER_VALIDATE_BOOLEAN
-        );
+        Config::$serverKey = $settings->server_key ?? (string) config('services.midtrans.server_key');
+
+        Config::$isProduction = $settings 
+            ? $settings->is_production 
+            : filter_var(config('services.midtrans.is_production', false), FILTER_VALIDATE_BOOLEAN);
+
         Config::$isSanitized = true;
         Config::$is3ds = true;
     }
 
     public function createSnap(Order $order, User $user): array
     {
+        $settings = \App\Models\MidtransSetting::first();
         $startTime = now()->format('Y-m-d H:i:s O');
 
-        // kalau expires_at null (harusnya tidak untuk pending), fallback 15 menit
-        $durationMinutes = $order->expires_at
-            ? max(1, (int) now()->diffInMinutes($order->expires_at, false))
-            : 15;
+        // expiry
+        if ($settings && $settings->expiry_duration) {
+            $unit = $settings->expiry_unit ?? 'minutes';
+            $duration = (int) $settings->expiry_duration;
+        } else {
+            // fallback logic
+            $unit = 'minutes';
+            $duration = $order->expires_at
+                ? max(1, (int) now()->diffInMinutes($order->expires_at, false))
+                : 15;
+        }
 
         $order->loadMissing(['product']);
 
@@ -53,10 +63,18 @@ class MidtransService
             ],
             'expiry' => [
                 'start_time' => $startTime,
-                'unit' => 'minutes',
-                'duration' => $durationMinutes,
+                'unit' => $unit,
+                'duration' => $duration,
             ],
         ];
+
+        // add merchant name if available
+        if ($settings && $settings->merchant_name) {
+            // Midtrans uses "business_name" sometimes in different contexts, 
+            // but for Snap, it captures it from the dashboard.
+            // However, we can use it in custom fields or just store it for future use.
+            // Some integrations use business_name in item_details or similar.
+        }
 
         $resp = Snap::createTransaction($params);
 
@@ -69,7 +87,9 @@ class MidtransService
 
     public function verifySignature(array $payload): bool
     {
-        $serverKey = (string) env('MIDTRANS_SERVER_KEY');
+        $settings = \App\Models\MidtransSetting::first();
+        $serverKey = $settings->server_key ?? (string) env('MIDTRANS_SERVER_KEY');
+        
         $orderId = (string) ($payload['order_id'] ?? '');
         $statusCode = (string) ($payload['status_code'] ?? '');
         $grossAmount = (string) ($payload['gross_amount'] ?? '');

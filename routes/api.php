@@ -33,6 +33,8 @@ use App\Http\Controllers\Api\Admin\AdminMaterialController;
 use App\Http\Controllers\Api\Admin\AdminMaterialPartController;
 use App\Http\Controllers\Api\Admin\AdminPackageMaterialController;
 use App\Http\Controllers\Api\MidtransWebhookController;
+use App\Http\Controllers\Api\Admin\AdminMidtransSettingController;
+use App\Http\Controllers\Api\MidtransConfigController;
 
 
 /*
@@ -76,6 +78,8 @@ Route::prefix('public')->group(function () {
 
     Route::get('/packages', [PackageController::class, 'index']);
     Route::get('/packages/{package}', [PackageController::class, 'show']);
+
+    Route::get('/midtrans/config', [MidtransConfigController::class, 'show']);
 });
 
 
@@ -124,6 +128,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/materials', [UserMaterialController::class, 'index']);
     Route::get('/materials/{material}', [UserMaterialController::class, 'show']);
     Route::get('/packages/{package}/materials', [UserMaterialController::class, 'byPackage']);
+
+    
 });
 
 /*
@@ -199,4 +205,8 @@ Route::middleware(['auth:sanctum', 'admin'])
         Route::get('packages/{package}/materials', [AdminPackageMaterialController::class, 'index']);
         Route::put('packages/{package}/materials', [AdminPackageMaterialController::class, 'sync']);
         Route::delete('packages/{package}/materials/{material}', [AdminPackageMaterialController::class, 'destroy']);
+
+        // midtrans settings
+        Route::get('/midtrans-settings', [AdminMidtransSettingController::class, 'index']);
+        Route::post('/midtrans-settings', [AdminMidtransSettingController::class, 'store']);
     });
